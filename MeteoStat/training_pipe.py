@@ -63,6 +63,13 @@ def trainer_test_split(df, frac=0.2):
 
 
 def generate_one_set_names(first_index,df):
+    """
+    Input : index value to start the set, and dataframe
+    Returns : One set of 20 sorted filenames ordered from the index value and forward
+
+    The split works so that the test rows are taken from the tail of the dataframe
+    """
+
     sorted_filenames = []
     for i in range(first_index,first_index+20):
       sorted_filenames.append(pd.Series(df['Filename'])[i])
@@ -70,6 +77,16 @@ def generate_one_set_names(first_index,df):
     return sorted_filenames
 
 def generate_all_set_names(number_of_sets,df):
+    """
+    Input : Number of sets to generate (INT) and Dataframe
+    Returns : a long list of all filenames ordered set by set
+
+    How it works, random variable that selects index in DF, and sends the index to
+    generate_one_set_names function. Thereafter it keeps the returned list in a
+    large list
+    """
+
+
     all_filenames = []
     min_index = min(list(df.index))
     max_index = max(list(df.index))-20
@@ -130,8 +147,8 @@ def arrange_training_data(test):
 # We'll define a helper function to shift the frames, where
 # `x` is frames 0 to n - 1, and `y` is frames 1 to n.
 def create_shifted_frames(data):
-    X = data[:, 0 : 9, :, :]
-    y = data[:, 10 : 19, :, :]
+    X = data[:,  : 10, :, :]
+    y = data[:, 10 : 20, :, :]
     return X, y
 
 def visualize_one_set(train_dataset):
