@@ -13,6 +13,8 @@ import cv2 as cv
 import data
 
 
+
+
 carte = mpimg.imread("carte_test.png")
 cols = {1:[209,251,252],    ## Couleurs de l'echelle d'intensite de pluie (mm/h)
        2:[97,219,241],
@@ -39,7 +41,7 @@ def preproc_from2 (start, finish):
             data.save_data(X_preproc, folder, date_save)
             folder = "Y_preproc"
             data.save_data(Y_preproc, folder, date_save)
-        except SyntaxError :
+        except (SyntaxError, OSError) as e :
             print (date_save, '--> Fichier vide !')
     pass
 
@@ -53,8 +55,8 @@ def preproc_data(img):
     img = retirer_txt (img)
     ## Zoom sur lla zone d'interet
     img_gray = colors2grays (img)
-    img_zoomX = crop_image (img, 'France_Nord')
-    img_zoomY = crop_image (img, 'IDF')
+    img_zoomX = crop_image (img_gray, 'France_Nord')
+    img_zoomY = crop_image (img_gray, 'IDF')
 
     return img_zoomX,img_zoomY
 
@@ -105,7 +107,6 @@ def crop_image (img, zone) :
         limite = [190,265,400,510]    ## Limites : [H_min, H_max, L_min, L_max]
     else :
         print("Unknown area : Area should be in ('France_Nord', 'IDF')")
-        break
     img_zoom = img[limite[0]:limite[1],limite[2]:limite[3]]
     return img_zoom
 
@@ -113,8 +114,8 @@ def crop_image (img, zone) :
 
 if __name__ == '__main__' :
 
-    start = datetime(2013, 1, 1)
-    finish = datetime(2013, 1, 2)
+    start = datetime(2017, 7, 1, 1)
+    finish = datetime(2017, 9, 30, 14, 30)
 
     #for (an, mois, jour, heure, minute) in data.iteration_15min(start, finish):
     print(preproc_from2 (start, finish))
