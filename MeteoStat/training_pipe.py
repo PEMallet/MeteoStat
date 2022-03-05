@@ -98,13 +98,23 @@ def generate_all_set_names(number_of_sets,df):
 
 def create_sets(sorted_filenames):
 
+    """
+    Input : A list of sorted filenames
+    Returns : A numpy array of all the images corresponding to the filename
+              Array output shape example: (30,20,95, 120) corresponding to 30 sets
+              of 20 images with 95 x 120 pixels
+
+    Currently the function generates gray scale out of colors and the folder where
+    the images are found is hardcoded in the function
+    """
+
     instances = []
     # instances = np.array(instances)
     temporary_list = []
     # temporary_list = np.array(temporary_list)
     # Load in the images
     counter = 0
-    mega_counter=0
+
     for name in sorted_filenames:
 
         tmp = cv2.imread('/content/drive/MyDrive/Projet_MeteoStat/images_preproc/{}'.format(name))
@@ -121,7 +131,7 @@ def create_sets(sorted_filenames):
             temporary_list = []
             # temporary_list = np.array(temporary_list)
         counter+=1
-        mega_counter+=1
+
 
     return np.array(instances)
 
