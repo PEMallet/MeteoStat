@@ -136,9 +136,18 @@ def create_sets(sorted_filenames):
     return np.array(instances)
 
 
-def arrange_training_data(test):
+def arrange_training_data(input_array):
+
+    """
+    Input : numpy array
+    Returns : train array and validation array, values has been divided by 255
+
+    Train validation split is 80/20
+    """
+
+
     # Swap the axes representing the number of frames and number of data samples.
-    dataset = np.expand_dims(test, axis=-1)
+    dataset = np.expand_dims(input_array, axis=-1)
 
     # Split into train and validation sets using indexing to optimize memory.
     indexes = np.arange(dataset.shape[0])
