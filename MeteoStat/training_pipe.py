@@ -10,6 +10,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import models
+import tensorflow.keras.backend as K
 import os
 
 import io
@@ -109,9 +110,9 @@ def create_sets(sorted_filenames):
     """
 
     instances = []
-    # instances = np.array(instances)
+
     temporary_list = []
-    # temporary_list = np.array(temporary_list)
+
     # Load in the images
     counter = 0
 
@@ -145,15 +146,14 @@ def arrange_training_data(input_array):
     Train validation split is 80/20
     """
 
-
     # Swap the axes representing the number of frames and number of data samples.
     dataset = np.expand_dims(input_array, axis=-1)
 
     # Split into train and validation sets using indexing to optimize memory.
     indexes = np.arange(dataset.shape[0])
     np.random.shuffle(indexes)
-    train_index = indexes[: int(0.8 * dataset.shape[0])] # Was 0.9
-    val_index = indexes[int(0.2 * dataset.shape[0]) :] # Was 0.1
+    train_index = indexes[: int(0.8 * dataset.shape[0])]
+    val_index = indexes[int(0.2 * dataset.shape[0]) :]
     train_dataset = dataset[train_index]
     val_dataset = dataset[val_index]
 
@@ -163,14 +163,28 @@ def arrange_training_data(input_array):
     return train_dataset,val_dataset
 
 
-# We'll define a helper function to shift the frames, where
-# `x` is frames 0 to n - 1, and `y` is frames 1 to n.
+
 def create_shifted_frames(data):
+    """
+    Note: function name remains but it does not shift frames anymore, it just takes each
+    set of 20 images and puts ten first as X and ten last as y
+
+    Input : A dataset of sets of 20 images
+    Returns : X and y for each set - qty is 10 for both
+
+    """
+
     X = data[:,  : 10, :, :]
     y = data[:, 10 : 20, :, :]
     return X, y
 
 def visualize_one_set(train_dataset):
+
+    """
+    Input : A dataset (coming from arrange_training_data)
+    Returns : Visualizes all 20 images from a random set within the input
+
+    """
 
     # Construct a figure on which we will visualize the images.
     fig, axes = plt.subplots(4, 5, figsize=(10, 8))
@@ -187,6 +201,7 @@ def visualize_one_set(train_dataset):
     plt.show()
 
 
+
 def create_model(X_train):
 
     # Construct the input layer with no definite frame size.
@@ -196,19 +211,19 @@ def create_model(X_train):
     # followed by a `Conv3D` layer for the spatiotemporal outputs.
     x = layers.ConvLSTM2D(
         filters=8,
-        kernel_size=(32, 32),
+        kernel_size=(16, 16),
         padding="same",
         return_sequences=True,
         activation="relu",
     )(inp)
-    # x = layers.BatchNormalization()(x)
-    # x = layers.ConvLSTM2D(
-    #     filters=8,
-    #     kernel_size=(16, 16),
-    #     padding="same",
-    #     return_sequences=True,
-    #     activation="relu",
-    # )(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ConvLSTM2D(
+        filters=8,
+        kernel_size=(8, 8),
+        padding="same",
+        return_sequences=True,
+        activation="relu",
+    )(x)
     x = layers.BatchNormalization()(x)
     x = layers.ConvLSTM2D(
         filters=8,
@@ -232,7 +247,9 @@ def create_model(X_train):
     # Next, we will build the complete model and compile it.
     model = keras.models.Model(inp, x)
     model.compile(
-        loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam(),) # was loss: binary_crossentropy
+        loss="mean_squared_error",
+        optimizer="adam",
+        metrics=["Accuracy"])
 
     model.summary()
     return model
@@ -274,7 +291,6 @@ def visualize_one_pred(val_dataset, model):
 
         predicted_frame = np.expand_dims(new_prediction[-1, ...], axis=0)
 
-
         # Extend the set of prediction frames.
         frames = np.concatenate((frames, predicted_frame), axis=0)
 
@@ -307,6 +323,8 @@ def generate_gifs(val_dataset, model):
     for example in examples:
         # Pick the first/last ten frames from the example.
         frames = example[:10, ...]
+        print("Example : ",example.shape) # Example shape (20, 84, 130, 1)
+        print("Frames : ",frames.shape) # Frames shape :  (10, 84, 130, 1)
         original_frames = example[10:, ...]
         new_predictions = np.zeros(shape=(10, *frames[0].shape))
 
@@ -314,9 +332,14 @@ def generate_gifs(val_dataset, model):
         for i in range(10):
             # Extract the model's prediction and post-process it.
             frames = example[: 10 + i + 1, ...]
+            print("Frames input to model : ",frames.shape) # (11, 84, 130, 1)
             new_prediction = model.predict(np.expand_dims(frames, axis=0))
+            print("Output model predict : ",new_prediction.shape) # Output model predict :  (1, 11, 84, 130, 1)
             new_prediction = np.squeeze(new_prediction, axis=0)
+            print("Output after Squeeze : ",new_prediction.shape) # (11, 84, 130, 1)
             predicted_frame = np.expand_dims(new_prediction[-1, ...], axis=0)
+
+            print("Output after expand dims : ",new_prediction.shape) # (11, 84, 130, 1)
 
             # AJ temporary white augmentation and black if below 0.25
             # predicted_frame = np.where(predicted_frame<0.001,0,predicted_frame*2)
