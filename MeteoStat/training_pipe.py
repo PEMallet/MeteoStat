@@ -153,7 +153,7 @@ def arrange_training_data(input_array):
     indexes = np.arange(dataset.shape[0])
     np.random.shuffle(indexes)
     train_index = indexes[: int(0.8 * dataset.shape[0])]
-    val_index = indexes[int(0.2 * dataset.shape[0]) :]
+    val_index = indexes[int(0.8 * dataset.shape[0]) :]
     train_dataset = dataset[train_index]
     val_dataset = dataset[val_index]
 
