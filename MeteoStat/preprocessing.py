@@ -55,9 +55,9 @@ def preproc_data(img):
     img = retirer_txt (img)
     ## Zoom sur lla zone d'interet
     img_gray = colors2grays (img)
+    img_gray = lissage_image(img_gray)
     img_zoomX = crop_image (img_gray, 'France_Nord')
     img_zoomY = crop_image (img_gray, 'IDF')
-
     return img_zoomX,img_zoomY
 
 
@@ -110,11 +110,15 @@ def crop_image (img, zone) :
     img_zoom = img[limite[0]:limite[1],limite[2]:limite[3]]
     return img_zoom
 
+def lissage_image(img):
+    img = img.astype('float32')
+    img = cv.medianBlur(img, 5)
+    return img
 
 
 if __name__ == '__main__' :
 
-    start = datetime(2017, 7, 1, 1)
+    start = datetime(2017, 5, 1, 1)
     finish = datetime(2017, 9, 30, 14, 30)
 
     #for (an, mois, jour, heure, minute) in data.iteration_15min(start, finish):
