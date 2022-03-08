@@ -26,7 +26,7 @@ def collect_filenames():
     The returned list is sorted (ascending)
     """
     filenames = []
-    for filepath in os.listdir('/content/drive/MyDrive/Projet_MeteoStat/images_preproc/'):
+    for filepath in os.listdir('/content/drive/MyDrive/Projet_MeteoStat/Data/X_preproc/'):
         filenames.append(filepath)
     return sorted(filenames)
 
@@ -118,9 +118,11 @@ def create_sets(sorted_filenames):
 
     for name in sorted_filenames:
 
-        tmp = cv2.imread('/content/drive/MyDrive/Projet_MeteoStat/images_preproc/{}'.format(name))
-        tmp = tmp[::5,::5,:]
-        gray_image = tmp.dot([0.07, 0.72, 0.21])
+        gray_image = cv2.imread('/content/drive/MyDrive/Projet_MeteoStat/Data/X_preproc/{}'.format(name))
+
+
+        gray_image = gray_image[::5,::5,:]
+        gray_image = gray_image.dot([0.07, 0.72, 0.21])
         # temporary_list = np.append(temporary_list,gray_image)
         temporary_list.append(gray_image)
 
@@ -371,3 +373,110 @@ def generate_gifs(val_dataset, model):
             ]
         )
         display(box)
+
+#### LOSS FUNCTIONS AND METRICS ####
+
+def mse_zoomIDF_Loss(y_true, y_pred):
+
+    """Mse Loss function for IDF zone
+    """
+    y_true_sliced =y_true[:,:,20:30,50:70,:]
+    y_pred_sliced =y_pred[:,:,20:30,50:70,:]
+
+    return K.mean((y_true_sliced-y_pred_sliced)**2)
+
+
+def correlationLoss(y_true,y_pred):
+
+    """Correlation Loss function for IDF
+    """
+
+    y_true_sliced =y_true[:,:,20:30,50:70,:]
+    y_pred_sliced =y_pred[:,:,20:30,50:70,:]
+
+    x, y =y_true_sliced[:8,:,:,:], y_pred_sliced[:8,:,:,:]
+
+    cov = tf.reduce_sum(tf.reduce_sum( (x ) * (y ), axis=2), axis=2)
+    x_sum2 = tf.experimental.numpy.nanmean(tf.reduce_sum(tf.reduce_sum( (x**2 ) , axis=2), axis=2))
+    y_sum2 = tf.experimental.numpy.nanmean(tf.reduce_sum(tf.reduce_sum( (y**2 ), axis=2), axis=2))
+
+    epsilon = 0.000001
+
+    corr = cov / (tf.sqrt(x_sum2 * y_sum2)+epsilon)
+
+    return -corr
+
+
+# Metrics class
+class Metrics(keras.callbacks.Callback):
+
+    def __init__(self, X_val, y_val):
+        super().__init__()
+        self.validation_data = [X_val, y_val]
+
+    def on_train_begin(self, logs={}):
+        self._data = []
+
+    def calc_mse(self, img_1, img_2):
+        return  np.mean((img_1-img_2)**2)
+
+    def calc_corr(self, img1, img2):
+        cm = np.corrcoef(img1.flat, img2.flat)
+        return cm[0, 1]
+
+    def metrics_to_baseline(self, y_true, y_pred):
+        """ Calcule les metriques = mse, corr coef
+        en pourcentage de la baseline, et en moyenne culumative
+        pour chaque pas de temps (à t2, retourne moy(t2, t1)/moy(t2_baseline, t1_baseline)*100"""
+
+        y_true =y_true[:,:,20:30,50:70,:] # Slicing the map over IDF
+        y_pred =y_pred[:,:,20:30,50:70,:] # Slicing the map over IDF
+
+        df = pd.read_csv("/content/drive/MyDrive/Projet_MeteoStat/code/Baselines.csv")
+        mse_cumul_baseline = df['mse_baseline_cumul']
+        corr_cumul_baseline = df['corr_baseline_cumul']
+
+        list_mse, list_corr = {}, {}
+        for i in range (y_pred.shape[1]):
+            list_mse[i] = self.calc_mse(y_true[0,i,:,:,0], y_pred[0,i,:,:,0]).item()
+            list_corr[i] = self.calc_corr(y_true[0,i,:,:,0], y_pred[0,i,:,:,0]).item()
+
+        mse_cumul, corr_cumul = [], []
+        dum = [0,1,2,3,4,5,6,7,8,9,10,11,12]
+        for i in range(1,len(list_mse)):
+            indexs = dum[:i]
+            mse_cumul.append( np.nanmean([list_mse[x] for x in indexs]) )
+            corr_cumul.append( np.nanmean([list_corr[x] for x in indexs]) )
+
+        result_corr = [0,0,0,0,0,0,0,0,0,0]
+        result_mse  = [0,0,0,0,0,0,0,0,0,0]
+        epsilon = .000000001
+        for i in range(len(mse_cumul)) :
+            result_mse[i] = 100* mse_cumul[i] / (mse_cumul_baseline[i]+epsilon)
+            result_corr[i] = 100* corr_cumul[i] / (corr_cumul_baseline[i]+epsilon)
+
+        self.mse_cumul_prop = result_mse
+        self.corr_cumul_prop = result_corr
+        return self.mse_cumul_prop, self.corr_cumul_prop
+
+
+
+    def on_epoch_end(self, batch, logs={}):
+        X_val, y_val = self.validation_data[0], self.validation_data[1]
+        y_predict = np.asarray(model.predict(X_val))
+
+        ## On run le calcul de metrics custo :
+        self.metrics_to_baseline(y_val, y_predict)
+
+        self._data.append({
+            'mse_perso': self.metrics_to_baseline(y_val, y_predict)[0],
+            'corr_perso': self.metrics_to_baseline(y_val, y_predict)[1],
+        })
+
+        print ("— val_mse_cumul_prop: %f — val_corr_cumul_prop: %f" %(self.mse_cumul_prop[8], self.corr_cumul_prop[8]))
+        return
+
+
+
+    def get_data(self):
+        return self._data
