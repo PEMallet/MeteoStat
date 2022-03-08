@@ -262,7 +262,7 @@ def train_model(model, X_train, y_train,X_val,y_val,epochs=5,batch_size=5):
     early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=10)
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor="val_loss", patience=5)
 
-
+    metrics = Metrics(X_val, y_val)
     # Fit the model to the training data.
     model.fit(
         X_train,
@@ -270,7 +270,7 @@ def train_model(model, X_train, y_train,X_val,y_val,epochs=5,batch_size=5):
         batch_size=batch_size,
         epochs=epochs,
         validation_data=(X_val, y_val),
-        callbacks=[early_stopping, reduce_lr],
+        callbacks=metrics #[early_stopping, reduce_lr],
     )
     return model
 
